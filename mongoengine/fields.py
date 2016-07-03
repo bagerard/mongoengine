@@ -25,6 +25,7 @@ try:
 except ImportError:
     Int64 = long
 
+from mongoengine.lazy_proxy import DocumentLazyProxy
 from mongoengine.errors import ValidationError
 from mongoengine.python_support import (PY3, bin_type, txt_type,
                                         str_types, StringIO)
@@ -941,6 +942,33 @@ class ReferenceField(BaseField):
         # Get value from document instance if available
         value = instance._data.get(self.name)
         self._auto_dereference = instance._fields[self.name]._auto_dereference
+
+        # Dereference DBRef
+        if type(value) is DocumentLazyProxy:
+            # already a proxy so don't proxy again
+            pass
+        elif self._auto_dereference and isinstance(value, DBRef):
+            cls = getattr(value, 'cls', self.document_type)     # Dereference using the class type specified in the reference
+
+            def deref():
+                deref_value = cls._get_db().dereference(value)
+                if deref_value is not None:
+                    return cls._from_son(deref_value)
+            instance._data[self.name] = DocumentLazyProxy(deref, value.id)
+
+        return super(ReferenceField, self).__get__(instance, owner)
+
+    def __getOLD__(self, instance, owner):
+        """Descriptor to allow lazy dereferencing.
+        """
+        if instance is None:
+            # Document class being used rather than a document object
+            return self
+
+        # Get value from document instance if available
+        value = instance._data.get(self.name)
+        self._auto_dereference = instance._fields[self.name]._auto_dereference
+
         # Dereference DBRefs
         if self._auto_dereference and isinstance(value, DBRef):
             if hasattr(value, 'cls'):
@@ -948,9 +976,18 @@ class ReferenceField(BaseField):
                 cls = get_document(value.cls)
             else:
                 cls = self.document_type
-            value = cls._get_db().dereference(value)
-            if value is not None:
-                instance._data[self.name] = cls._from_son(value)
+
+            value_ = [value]
+
+            def deref():
+                value = value_[0]
+                value = cls._get_db().dereference(value)
+                if value is not None:
+                    deref_value = cls._from_son(value)
+                    instance._data[self.name] = deref_value
+                return super(ReferenceField, self).__get__(instance, owner)
+            oid = value.id if isinstance(value, DBRef) else value
+            return LazyProxy(deref, id=oid)
 
         return super(ReferenceField, self).__get__(instance, owner)
 

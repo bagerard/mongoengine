@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
+from mongoengine.lazy_proxy import DocumentLazyProxy
+from bson.objectid import ObjectId
 sys.path[0:0] = [""]
 import unittest
 
@@ -259,10 +261,10 @@ class FieldTest(unittest.TestCase):
             self.assertEqual(q, 1)
 
             peter.boss
-            self.assertEqual(q, 2)
+            self.assertEqual(q, 1)
 
             peter.friends
-            self.assertEqual(q, 3)
+            self.assertEqual(q, 2)
 
         # Document select_related
         with query_counter() as q:
@@ -291,6 +293,46 @@ class FieldTest(unittest.TestCase):
                 self.assertEqual(employee.friends, friends)
                 self.assertEqual(q, 2)
 
+    def test_dereference_proxy(self):
+        """xxx
+        """
+        class User(Document):
+            name = StringField()
+
+        class Post(Document):
+            user = ReferenceField(User)
+
+        user = User(name='John Doe').save()
+        post = Post(user=user).save()
+
+        post = Post.objects.with_id(post.id)
+
+        with query_counter() as qry_cnt:
+            self.assertIsInstance(post._data['user'], DBRef)
+            self.assertEqual(qry_cnt, 0)
+            assert type(post.user) is DocumentLazyProxy
+            self.assertEqual(qry_cnt, 0)
+            self.assertIsInstance(post.user.id, ObjectId)
+            self.assertEqual(qry_cnt, 0)
+
+            post.user.name      # Trigger dereferencing
+            self.assertEqual(qry_cnt, 1)
+            self.assertIsInstance(post._data['user'], User)
+
+#         with query_counter() as qry_cnt:
+#             assert isinstance(post._data['user_dbref'], DBRef)
+#             self.assertEqual(qry_cnt, 0)
+#             assert type(post.user_dbref) is DocumentLazyProxy
+#             post.user
+#             self.assertEqual(qry_cnt, 0)
+#             assert isinstance(post.user_dbref.id, ObjectId)
+#             self.assertEqual(qry_cnt, 0)
+#
+#             # Trigger dereferencing
+#             post.user_dbref.name
+#             self.assertEqual(qry_cnt, 1)
+#             assert type(post._data['user_dbref']) is User
+
     def test_list_of_lists_of_references(self):
 
         class User(Document):
@@ -304,16 +346,17 @@ class FieldTest(unittest.TestCase):
 
         User.drop_collection()
         Post.drop_collection()
+        SimpleList.drop_collection()
 
         u1 = User.objects.create(name='u1')
         u2 = User.objects.create(name='u2')
         u3 = User.objects.create(name='u3')
 
         SimpleList.objects.create(users=[u1, u2, u3])
-        self.assertEqual(SimpleList.objects.all()[0].users, [u1, u2, u3])
+        self.assertEqual(SimpleList.objects.first().users, [u1, u2, u3])
 
         Post.objects.create(user_lists=[[u1, u2], [u3]])
-        self.assertEqual(Post.objects.all()[0].user_lists, [[u1, u2], [u3]])
+        self.assertEqual(Post.objects.first().user_lists, [[u1, u2], [u3]])
 
     def test_circular_reference(self):
         """Ensure you can handle circular references
