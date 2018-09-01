@@ -936,7 +936,7 @@ class DictField(ComplexBaseField):
 
     def __init__(self, basecls=None, field=None, *args, **kwargs):
         self.field = field
-        self._auto_dereference = False
+        # self._auto_dereference = False
         self.basecls = basecls or BaseField
 
         # XXX ValidationError raised outside of the "validate" method.

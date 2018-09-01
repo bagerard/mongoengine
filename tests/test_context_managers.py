@@ -7,6 +7,11 @@ from mongoengine.context_managers import (switch_db, switch_collection,
                                           query_counter)
 
 
+class CustomException(Exception):
+    """Custom exception type that can be used in tests"""
+    pass
+
+
 class ContextManagersTest(unittest.TestCase):
 
     def test_switch_db_context_manager(self):
@@ -61,6 +66,32 @@ class ContextManagersTest(unittest.TestCase):
 
         self.assertEqual(1, Group.objects.count())
 
+    def test_no_dereference_context_keeps__auto_dereference_initial_values(self):
+        class User(Document):
+            name = StringField()
+
+        class Group(Document):
+            user = ReferenceField(User)
+
+        self.assertTrue(Group.user._auto_dereference)
+        with no_dereference(Group):
+            self.assertFalse(Group.user._auto_dereference)
+        self.assertTrue(Group.user._auto_dereference)
+
+        Group.user._auto_dereference = False
+        with no_dereference(Group):
+            self.assertFalse(Group.user._auto_dereference)
+        self.assertFalse(Group.user._auto_dereference)
+
+    def test_no_dereference_context_manager_does_not_swallow_exception(self):
+
+        class User(Document):
+            name = StringField()
+
+        with self.assertRaises(CustomException):
+            with no_dereference(User):
+                raise CustomException()
+
     def test_no_dereference_context_manager_object_id(self):
         """Ensure that DBRef items in ListFields aren't dereferenced.
         """
@@ -84,7 +115,7 @@ class ContextManagersTest(unittest.TestCase):
         Group(ref=user, members=User.objects, generic=user).save()
 
         with no_dereference(Group) as NoDeRefGroup:
-            self.assertTrue(Group._fields['members']._auto_dereference)
+            # self.assertTrue(Group._fields['members']._auto_dereference)
             self.assertFalse(NoDeRefGroup._fields['members']._auto_dereference)
 
         with no_dereference(Group) as Group:
@@ -122,7 +153,7 @@ class ContextManagersTest(unittest.TestCase):
         Group(ref=user, members=User.objects, generic=user).save()
 
         with no_dereference(Group) as NoDeRefGroup:
-            self.assertTrue(Group._fields['members']._auto_dereference)
+            # self.assertTrue(Group._fields['members']._auto_dereference)       # NOT TRUE
             self.assertFalse(NoDeRefGroup._fields['members']._auto_dereference)
 
         with no_dereference(Group) as Group:

@@ -698,12 +698,22 @@ class BaseDocument(object):
         changed_fields = []
         errors_dict = {}
 
-        fields = cls._fields
-        if not _auto_dereference:
-            fields = copy.copy(fields)
+        fields = {}
+        # Applies the proper _auto_dereference flag to the fields
+        # based on the queryset's `no_dereference` and the field's current `_auto_dereference` flag
+        for field_name, field in cls._fields.iteritems():
+            new_auto_dereference = _auto_dereference and field._auto_dereference
+            if new_auto_dereference != field._auto_dereference:
+                field = copy.copy(field)   # Avoid altering the class' field
+                field._auto_dereference = new_auto_dereference
+            fields[field_name] = field
 
+        # if not _auto_dereference:
+        #     fields = copy.copy(fields)      # Avoid altering the class fields
+
+        # Rename keys based on the field's db_field attribute
         for field_name, field in fields.iteritems():
-            field._auto_dereference = _auto_dereference
+            # field._auto_dereference = _auto_dereference
             if field.db_field in data:
                 value = data[field.db_field]
                 try:
