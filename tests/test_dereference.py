@@ -701,7 +701,7 @@ class FieldTest(unittest.TestCase):
         group.save()
         group = Group(members={str(u.id): u for u in members})
         group.save()
-
+        d = Group.objects.as_pymongo().first()
         with query_counter() as q:
             self.assertEqual(q, 0)
 

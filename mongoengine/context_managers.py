@@ -112,22 +112,22 @@ class no_dereference(object):
         GenericReferenceField = _import_class('GenericReferenceField')
         ComplexBaseField = _import_class('ComplexBaseField')
 
-        self.deref_fields = [k for k, v in self.cls._fields.iteritems()
+        self.deref_fields = {k: None for k, v in self.cls._fields.iteritems()
                              if isinstance(v, (ReferenceField,
                                                GenericReferenceField,
-                                               ComplexBaseField))]
+                                               ComplexBaseField))}
 
     def __enter__(self):
         """Change the objects default and _auto_dereference values."""
         for field in self.deref_fields:
+            self.deref_fields[field] = self.cls._fields[field]._auto_dereference    # remembers initial values
             self.cls._fields[field]._auto_dereference = False
         return self.cls
 
     def __exit__(self, t, value, traceback):
-        """Reset the default and _auto_dereference values."""
-        for field in self.deref_fields:
-            self.cls._fields[field]._auto_dereference = True
-        return self.cls
+        """Reset the initial values of _auto_dereference values."""
+        for field, initial_value in self.deref_fields.items():
+            self.cls._fields[field]._auto_dereference = initial_value
 
 
 class no_sub_classes(object):
@@ -215,7 +215,7 @@ class query_counter(object):
         """Get the number of queries."""
         ignore_query = {'ns': {'$ne': '%s.system.indexes' % self.db.name}}
         count = self.db.system.profile.find(ignore_query).count() - self.counter
-        self.counter += 1
+        self.counter += 1   # Account for the query we just fired
         return count
 
 
