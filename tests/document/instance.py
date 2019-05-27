@@ -730,32 +730,32 @@ class InstanceTest(MongoDBTestCase):
 
         TestDocument().save(clean=False)
 
-    def test_save_signal_pre_save_post_validation_makes_change_to_doc(self):
-        class BlogPost(Document):
-            content = StringField()
-
-            @classmethod
-            def pre_save_post_validation(cls, sender, document, **kwargs):
-                document.content = 'checked'
-
-        signals.pre_save_post_validation.connect(BlogPost.pre_save_post_validation, sender=BlogPost)
-
-        BlogPost.drop_collection()
-
-        post = BlogPost(content='unchecked').save()
-        self.assertEqual(post.content, 'checked')
-        # Make sure pre_save_post_validation changes makes it to the db
-        raw_doc = get_as_pymongo(post)
-        self.assertEqual(
-            raw_doc,
-            {
-                'content': 'checked',
-                '_id': post.id
-            })
-
-        # Important to disconnect as it could cause some assertions in test_signals
-        # to fail (due to the garbage collection timing of this signal)
-        signals.pre_save_post_validation.disconnect(BlogPost.pre_save_post_validation)
+    # def test_save_signal_pre_save_post_validation_makes_change_to_doc(self):
+    #     class BlogPost(Document):
+    #         content = StringField()
+    #
+    #         @classmethod
+    #         def pre_save_post_validation(cls, sender, document, **kwargs):
+    #             document.content = 'checked'
+    #
+    #     signals.pre_save_post_validation.connect(BlogPost.pre_save_post_validation, sender=BlogPost)
+    #
+    #     BlogPost.drop_collection()
+    #
+    #     post = BlogPost(content='unchecked').save()
+    #     self.assertEqual(post.content, 'checked')
+    #     # Make sure pre_save_post_validation changes makes it to the db
+    #     raw_doc = get_as_pymongo(post)
+    #     self.assertEqual(
+    #         raw_doc,
+    #         {
+    #             'content': 'checked',
+    #             '_id': post.id
+    #         })
+    #
+    #     # Important to disconnect as it could cause some assertions in test_signals
+    #     # to fail (due to the garbage collection timing of this signal)
+    #     signals.pre_save_post_validation.disconnect(BlogPost.pre_save_post_validation)
 
     def test_document_clean(self):
         class TestDocument(Document):

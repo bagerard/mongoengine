@@ -11,6 +11,7 @@ class SignalTests(unittest.TestCase):
     """
     Testing signals before/after saving and deleting.
     """
+    maxDiff = None
 
     def get_signal_output(self, fn, *args, **kwargs):
         # Flush any existing signal output
@@ -259,7 +260,15 @@ class SignalTests(unittest.TestCase):
         try:
             self.assertEqual(self.pre_signals, post_signals)
         except AssertionError:
-            self.assertEqual(self.pre_signals_str, post_signals_str)
+            self.assertEqual(self.pre_signals_str[0], post_signals_str[0])
+            self.assertEqual(self.pre_signals_str[1], post_signals_str[1])
+            self.assertEqual(self.pre_signals_str[2], post_signals_str[2])
+            self.assertEqual(self.pre_signals_str[3], post_signals_str[3])
+            self.assertEqual(self.pre_signals_str[4], post_signals_str[4])
+            self.assertEqual(self.pre_signals_str[5], post_signals_str[5])
+            self.assertEqual(self.pre_signals_str[6], post_signals_str[6])
+            self.assertEqual(self.pre_signals_str[7], post_signals_str[7])
+            self.assertEqual(self.pre_signals_str[8], post_signals_str[8])
 
     def test_model_signals(self):
         """ Model saves should throw some signals. """
