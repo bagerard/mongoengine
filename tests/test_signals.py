@@ -175,6 +175,19 @@ class SignalTests(unittest.TestCase):
             len(signals.post_bulk_insert.receivers),
         )
 
+        to_str = lambda receivers: str(list(receivers.values()))
+        self.pre_signals_str = (
+            to_str(signals.pre_init.receivers),
+            to_str(signals.post_init.receivers),
+            to_str(signals.pre_save.receivers),
+            to_str(signals.pre_save_post_validation.receivers),
+            to_str(signals.post_save.receivers),
+            to_str(signals.pre_delete.receivers),
+            to_str(signals.post_delete.receivers),
+            to_str(signals.pre_bulk_insert.receivers),
+            to_str(signals.post_bulk_insert.receivers),
+        )
+
         signals.pre_init.connect(Author.pre_init, sender=Author)
         signals.post_init.connect(Author.post_init, sender=Author)
         signals.pre_save.connect(Author.pre_save, sender=Author)
@@ -225,12 +238,28 @@ class SignalTests(unittest.TestCase):
             len(signals.post_bulk_insert.receivers),
         )
 
+        to_str = lambda receivers: str(list(receivers.values()))
+        post_signals_str = (
+            to_str(signals.pre_init.receivers),
+            to_str(signals.post_init.receivers),
+            to_str(signals.pre_save.receivers),
+            to_str(signals.pre_save_post_validation.receivers),
+            to_str(signals.post_save.receivers),
+            to_str(signals.pre_delete.receivers),
+            to_str(signals.post_delete.receivers),
+            to_str(signals.pre_bulk_insert.receivers),
+            to_str(signals.post_bulk_insert.receivers),
+        )
+
         self.ExplicitId.objects.delete()
 
         # Note that there is a chance that the following assert fails in case
         # some receivers (eventually created in other tests)
         # gets garbage collected (https://pythonhosted.org/blinker/#blinker.base.Signal.connect)
-        self.assertEqual(self.pre_signals, post_signals)
+        try:
+            self.assertEqual(self.pre_signals, post_signals)
+        except AssertionError:
+            self.assertEqual(self.pre_signals_str, post_signals_str)
 
     def test_model_signals(self):
         """ Model saves should throw some signals. """
