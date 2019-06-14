@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
+from bson.int64 import Int64
 import six
-
-try:
-    from bson.int64 import Int64
-except ImportError:
-    Int64 = long
 
 from mongoengine import *
 from mongoengine.connection import get_db

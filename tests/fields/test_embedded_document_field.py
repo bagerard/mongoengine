@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-from mongoengine import Document, StringField, ValidationError, EmbeddedDocument, EmbeddedDocumentField, \
-    InvalidQueryError, LookUpError, IntField, GenericEmbeddedDocumentField, ListField, EmbeddedDocumentListField, \
-    ReferenceField
+from builtins import str
+
+from mongoengine import Document, EmbeddedDocument, EmbeddedDocumentField, GenericEmbeddedDocumentField, \
+    IntField, InvalidQueryError, ListField, LookUpError, StringField, ValidationError
+
 
 from tests.utils import MongoDBTestCase
 
@@ -63,7 +65,7 @@ class TestEmbeddedDocumentField(MongoDBTestCase):
         # Test non exiting attribute
         with self.assertRaises(InvalidQueryError) as ctx_err:
             Person.objects(settings__notexist='bar').first()
-        self.assertEqual(unicode(ctx_err.exception), u'Cannot resolve field "notexist"')
+        self.assertEqual(str(ctx_err.exception), u'Cannot resolve field "notexist"')
 
         with self.assertRaises(LookUpError):
             Person.objects.only('settings.notexist')
@@ -99,7 +101,7 @@ class TestEmbeddedDocumentField(MongoDBTestCase):
         # Test non exiting attribute
         with self.assertRaises(InvalidQueryError) as ctx_err:
             self.assertEqual(Person.objects(settings__notexist='bar').first().id, p.id)
-        self.assertEqual(unicode(ctx_err.exception), u'Cannot resolve field "notexist"')
+        self.assertEqual(str(ctx_err.exception), u'Cannot resolve field "notexist"')
 
         # Test existing attribute
         self.assertEqual(Person.objects(settings__base_foo='basefoo').first().id, p.id)
@@ -309,7 +311,7 @@ class TestGenericEmbeddedDocumentField(MongoDBTestCase):
         # Test non exiting attribute
         with self.assertRaises(InvalidQueryError) as ctx_err:
             Person.objects(settings__notexist='bar').first()
-        self.assertEqual(unicode(ctx_err.exception), u'Cannot resolve field "notexist"')
+        self.assertEqual(str(ctx_err.exception), u'Cannot resolve field "notexist"')
 
         with self.assertRaises(LookUpError):
             Person.objects.only('settings.notexist')
@@ -337,7 +339,7 @@ class TestGenericEmbeddedDocumentField(MongoDBTestCase):
         # Test non exiting attribute
         with self.assertRaises(InvalidQueryError) as ctx_err:
             self.assertEqual(Person.objects(settings__notexist='bar').first().id, p.id)
-        self.assertEqual(unicode(ctx_err.exception), u'Cannot resolve field "notexist"')
+        self.assertEqual(str(ctx_err.exception), u'Cannot resolve field "notexist"')
 
         # Test existing attribute
         self.assertEqual(Person.objects(settings__base_foo='basefoo').first().id, p.id)

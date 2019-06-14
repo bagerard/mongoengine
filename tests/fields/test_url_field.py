@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from builtins import str
+
 from mongoengine import *
 
 from tests.utils import MongoDBTestCase
@@ -30,7 +32,7 @@ class TestURLField(MongoDBTestCase):
         # For now we just want to make sure that the error message is correct
         with self.assertRaises(ValidationError) as ctx_err:
             link.validate()
-        self.assertEqual(unicode(ctx_err.exception),
+        self.assertEqual(str(ctx_err.exception),
                          u"ValidationError (Link:None) (Invalid URL: http://\u043f\u0440\u0438\u0432\u0435\u0442.com: ['url'])")
 
     def test_url_scheme_validation(self):

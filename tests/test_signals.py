@@ -55,7 +55,7 @@ class SignalTests(unittest.TestCase):
 
             @classmethod
             def post_save(cls, sender, document, **kwargs):
-                dirty_keys = document._delta()[0].keys() + document._delta()[1].keys()
+                dirty_keys = list(document._delta()[0].keys()) + list(document._delta()[1].keys())
                 signal_output.append('post_save signal, %s' % document)
                 signal_output.append('post_save dirty keys, %s' % dirty_keys)
                 if kwargs.pop('created', False):
@@ -247,7 +247,7 @@ class SignalTests(unittest.TestCase):
             self.Author.objects.insert([a1], load_bulk=False)
 
         def load_existing_author():
-            a  = self.Author(name='Bill Shakespeare')
+            a = self.Author(name='Bill Shakespeare')
             a.save()
             self.get_signal_output(lambda: None)  # eliminate signal output
             a1 = self.Author.objects(name='Bill Shakespeare')[0]
