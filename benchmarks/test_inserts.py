@@ -3,19 +3,23 @@ import timeit
 
 def main():
     setup = """
+from builtins import range
+
 from pymongo import MongoClient
+
 connection = MongoClient()
 connection.drop_database('timeit_test')
 """
 
     stmt = """
 from pymongo import MongoClient
+
 connection = MongoClient()
 
 db = connection.timeit_test
 noddy = db.noddy
 
-for i in xrange(10000):
+for i in range(10000):
     example = {'fields': {}}
     for j in range(20):
         example['fields']["key"+str(j)] = "value "+str(j)
@@ -38,7 +42,7 @@ connection = MongoClient()
 db = connection.timeit_test
 noddy = db.noddy.with_options(write_concern=WriteConcern(w=0))
 
-for i in xrange(10000):
+for i in range(10000):
     example = {'fields': {}}
     for j in range(20):
         example['fields']["key"+str(j)] = "value "+str(j)
@@ -55,7 +59,10 @@ myNoddys = noddy.find()
     print '{}s'.format(t.timeit(1))
 
     setup = """
+from builtins import range
+
 from pymongo import MongoClient
+
 connection = MongoClient()
 connection.drop_database('timeit_test')
 connection.close()
@@ -68,7 +75,7 @@ class Noddy(Document):
 """
 
     stmt = """
-for i in xrange(10000):
+for i in range(10000):
     noddy = Noddy()
     for j in range(20):
         noddy.fields["key"+str(j)] = "value "+str(j)
@@ -84,7 +91,7 @@ myNoddys = Noddy.objects()
     print '{}s'.format(t.timeit(1))
 
     stmt = """
-for i in xrange(10000):
+for i in range(10000):
     noddy = Noddy()
     fields = {}
     for j in range(20):
@@ -102,7 +109,7 @@ myNoddys = Noddy.objects()
     print '{}s'.format(t.timeit(1))
 
     stmt = """
-for i in xrange(10000):
+for i in range(10000):
     noddy = Noddy()
     for j in range(20):
         noddy.fields["key"+str(j)] = "value "+str(j)
@@ -118,7 +125,7 @@ myNoddys = Noddy.objects()
     print '{}s'.format(t.timeit(1))
 
     stmt = """
-for i in xrange(10000):
+for i in range(10000):
     noddy = Noddy()
     for j in range(20):
         noddy.fields["key"+str(j)] = "value "+str(j)
@@ -134,7 +141,7 @@ myNoddys = Noddy.objects()
     print '{}s'.format(t.timeit(1))
 
     stmt = """
-for i in xrange(10000):
+for i in range(10000):
     noddy = Noddy()
     for j in range(20):
         noddy.fields["key"+str(j)] = "value "+str(j)

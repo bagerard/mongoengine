@@ -64,7 +64,7 @@ install:
 before_script:
   - mkdir ${PWD}/mongodb-linux-x86_64-${MONGODB}/data
   - ${PWD}/mongodb-linux-x86_64-${MONGODB}/bin/mongod --dbpath ${PWD}/mongodb-linux-x86_64-${MONGODB}/data --logpath ${PWD}/mongodb-linux-x86_64-${MONGODB}/mongodb.log --fork
-  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then flake8 .; else echo "flake8 only runs on py27"; fi   # Run flake8 for py27
+  - flake8 .
   - mongo --eval 'db.version();'    # Make sure mongo is awake
 
 script:
@@ -74,7 +74,7 @@ script:
 # 0% coverage. That's caused by 'use_2to3', which builds the py3-compatible
 # code in a separate dir and runs tests on that.
 after_success:
-- if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then coveralls --verbose; fi
+- coveralls --verbose
 
 notifications:
   irc: irc.freenode.org#mongoengine
