@@ -34,16 +34,16 @@ def test_basic():
             is_published=True,
         )
 
-    print 'Doc initialization: %.3fus' % (timeit(init_book, 1000) * 10**6)
+    print('Doc initialization: %.3fus' % (timeit(init_book, 1000) * 10**6))
 
     b = init_book()
-    print 'Doc getattr: %.3fus' % (timeit(lambda: b.name, 10000) * 10**6)
+    print('Doc getattr: %.3fus' % (timeit(lambda: b.name, 10000) * 10**6))
 
-    print 'Doc setattr: %.3fus' % (
+    print('Doc setattr: %.3fus' % (
         timeit(lambda: setattr(b, 'name', 'New name'), 10000) * 10**6
-    )
+    ))
 
-    print 'Doc to mongo: %.3fus' % (timeit(b.to_mongo, 1000) * 10**6)
+    print('Doc to mongo: %.3fus' % (timeit(b.to_mongo, 1000) * 10**6))
 
     def save_book():
         b._mark_as_changed('name')
@@ -53,15 +53,15 @@ def test_basic():
     save_book()
     son = b.to_mongo()
 
-    print 'Load from SON: %.3fus' % (
+    print('Load from SON: %.3fus' % (
         timeit(lambda: Book._from_son(son), 1000) * 10**6
-    )
+    ))
 
-    print 'Save to database: %.3fus' % (timeit(save_book, 100) * 10**6)
+    print('Save to database: %.3fus' % (timeit(save_book, 100) * 10**6))
 
-    print 'Load from database: %.3fus' % (
+    print('Load from database: %.3fus' % (
         timeit(lambda: Book.objects[0], 100) * 10**6
-    )
+    ))
 
 
 def test_embedded():
@@ -94,17 +94,17 @@ def test_embedded():
         c.save()
         c.delete()
 
-    print 'Save/delete big object to database: %.3fms' % (
+    print('Save/delete big object to database: %.3fms' % (
         timeit(create_company, 10) * 10**3
-    )
+    ))
 
     c = init_company().save()
-    print 'Serialize big object: %.3fms' % (
+    print('Serialize big object: %.3fms' % (
         timeit(c.to_mongo, 100) * 10**3
-    )
-    print 'Load big object from database: %.3fms' % (
+    ))
+    print('Load big object from database: %.3fms' % (
         timeit(lambda: Company.objects[0], 100) * 10**3
-    )
+    ))
 
 
 if __name__ == '__main__':
