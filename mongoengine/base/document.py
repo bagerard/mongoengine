@@ -25,6 +25,16 @@ NON_FIELD_ERRORS = '__all__'
 
 
 class BaseDocument(object):
+    # TODO simplify how `_changed_fields` is used.
+    # Currently, handling of `_changed_fields` seems unnecessarily convoluted:
+    # 1. `BaseDocument` defines `_changed_fields` in its `__slots__`, yet it's
+    #    not setting it to `[]` (or any other value) in `__init__`.
+    # 2. `EmbeddedDocument` sets `_changed_fields` to `[]` it its overloaded
+    #    `__init__`.
+    # 3. `Document` does NOT set `_changed_fields` upon initialization. The
+    #    field is primarily set via `_from_son` or `_clear_changed_fields`,
+    #    though there are also other methods that manipulate it.
+    # 4. The codebase is littered with `hasattr` calls for `_changed_fields`.
     __slots__ = ('_changed_fields', '_initialised', '_created', '_data',
                  '_dynamic_fields', '_auto_id_field', '_db_field_map',
                  '__weakref__')
@@ -35,13 +45,20 @@ class BaseDocument(object):
 
     def __init__(self, *args, **values):
         """
-        Initialise a document or embedded document
+        Initialise a document or an embedded document.
 
-        :param __auto_convert: Try and will cast python objects to Object types
-        :param values: A dictionary of values for the document
+        :param dict values: A dictionary of keys and values for the document.
+            It may contain additional reserved keywords, e.g. "__auto_convert".
+        :param bool __auto_convert: If True, supplied values will be converted
+            to Python-type values via each field's `to_python` method.
+        :param set __only_fields: A set of fields that have been loaded for
+            this document. Empty if all fields have been loaded.
+        :param bool _created: Indicates whether this is a brand new document
+            or whether it's already been persisted before. Defaults to true.
         """
         self._initialised = False
         self._created = True
+
         if args:
             # Combine positional arguments with named arguments.
             # We only want named arguments.
@@ -58,7 +75,6 @@ class BaseDocument(object):
 
         __auto_convert = values.pop('__auto_convert', True)
 
-        # 399: set default values only to fields loaded from DB
         __only_fields = set(values.pop('__only_fields', values))
 
         _created = values.pop('_created', True)
@@ -83,7 +99,9 @@ class BaseDocument(object):
 
         self._dynamic_fields = SON()
 
-        # Assign default values to instance
+        # Assign default values to the instance.
+        # We set default values only for fields loaded from DB. See
+        # https://github.com/mongoengine/mongoengine/issues/399 for more info.
         for key, field in iteritems(self._fields):
             if self._db_field_map.get(key, key) in __only_fields:
                 continue
@@ -125,6 +143,7 @@ class BaseDocument(object):
         # Flag initialised
         self._initialised = True
         self._created = _created
+
         signals.post_init.send(self.__class__, document=self)
 
     def __delattr__(self, *args, **kwargs):
@@ -665,9 +684,7 @@ class BaseDocument(object):
 
     @classmethod
     def _from_son(cls, son, _auto_dereference=True, only_fields=None, created=False):
-        """Create an instance of a Document (subclass) from a PyMongo
-        SON.
-        """
+        """Create an instance of a Document (subclass) from a PyMongo SON."""
         if not only_fields:
             only_fields = []
 
@@ -690,7 +707,6 @@ class BaseDocument(object):
         if class_name != cls._class_name:
             cls = get_document(class_name)
 
-        changed_fields = []
         errors_dict = {}
 
         fields = cls._fields
@@ -720,8 +736,13 @@ class BaseDocument(object):
         if cls.STRICT:
             data = {k: v for k, v in iteritems(data) if k in cls._fields}
 
-        obj = cls(__auto_convert=False, _created=created, __only_fields=only_fields, **data)
-        obj._changed_fields = changed_fields
+        obj = cls(
+            __auto_convert=False,
+            _created=created,
+            __only_fields=only_fields,
+            **data
+        )
+        obj._changed_fields = []
         if not _auto_dereference:
             obj._fields = fields
 
