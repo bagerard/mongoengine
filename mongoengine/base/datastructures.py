@@ -1,6 +1,7 @@
 import weakref
 
 from bson import DBRef
+from future.utils import listitems
 import six
 from six import iteritems
 
@@ -415,10 +416,10 @@ class StrictDict(object):
         return len(list(iteritems(self)))
 
     def __eq__(self, other):
-        return list(self.items()) == list(other.items())
+        return listitems(self) == listitems(other)
 
     def __ne__(self, other):
-        return list(self.items()) != list(other.items())
+        return not(self == other)
 
     @classmethod
     def create(cls, allowed_keys):

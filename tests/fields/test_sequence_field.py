@@ -193,7 +193,7 @@ class TestSequenceField(MongoDBTestCase):
         self.assertEqual(c['next'], 10)
 
         ids = [i.id for i in Person.objects]
-        self.assertEqual(ids, list(map(str, range(1, 11))))
+        self.assertEqual(ids, [str(i) for i in range(1, 11)])
 
         c = self.db['mongoengine.counters'].find_one({'_id': 'person.id'})
         self.assertEqual(c['next'], 10)
@@ -264,8 +264,8 @@ class TestSequenceField(MongoDBTestCase):
 
         self.assertFalse('base.counter' in
                          self.db['mongoengine.counters'].find().distinct('_id'))
-        self.assertTrue(('foo.counter' and 'bar.counter') in
-                         self.db['mongoengine.counters'].find().distinct('_id'))
+        self.assertTrue('foo.counter' in self.db['mongoengine.counters'].find().distinct('_id'))
+        self.assertTrue('bar.counter' in self.db['mongoengine.counters'].find().distinct('_id'))
         self.assertEqual(foo.counter, bar.counter)
         self.assertEqual(foo._fields['counter'].owner_document, Foo)
         self.assertEqual(bar._fields['counter'].owner_document, Bar)
