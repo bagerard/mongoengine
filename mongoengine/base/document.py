@@ -35,7 +35,7 @@ class BaseDocument:
     # Currently, handling of `_changed_fields` seems unnecessarily convoluted:
     # 1. `BaseDocument` defines `_changed_fields` in its `__slots__`, yet it's
     #    not setting it to `[]` (or any other value) in `__init__`.
-    # 2. `EmbeddedDocument` sets `_changed_fields` to `[]` it its overloaded
+    # 2. `EmbeddedDocument` sets `_changed_fields` to `[]` in its overloaded
     #    `__init__`.
     # 3. `Document` does NOT set `_changed_fields` upon initialization. The
     #    field is primarily set via `_from_son` or `_clear_changed_fields`,
@@ -665,52 +665,52 @@ class BaseDocument:
                 del set_data["_id"]
 
         # Determine if any changed items were actually unset.
-        for path, value in list(set_data.items()):
-            if value or isinstance(
-                value, (numbers.Number, bool)
-            ):  # Account for 0 and True that are truthy
-                continue
-
-            parts = path.split(".")
-
-            if self._dynamic and len(parts) and parts[0] in self._dynamic_fields:
-                del set_data[path]
-                unset_data[path] = 1
-                continue
-
-            # If we've set a value that ain't the default value don't unset it.
-            default = None
-            if path in self._fields:
-                default = self._fields[path].default
-            else:  # Perform a full lookup for lists / embedded lookups
-                d = self
-                db_field_name = parts.pop()
-                for p in parts:
-                    if isinstance(d, list) and p.isdigit():
-                        d = d[int(p)]
-                    elif hasattr(d, "__getattribute__") and not isinstance(d, dict):
-                        real_path = d._reverse_db_field_map.get(p, p)
-                        d = getattr(d, real_path)
-                    else:
-                        d = d.get(p)
-
-                if hasattr(d, "_fields"):
-                    field_name = d._reverse_db_field_map.get(
-                        db_field_name, db_field_name
-                    )
-                    if field_name in d._fields:
-                        default = d._fields.get(field_name).default
-                    else:
-                        default = None
-
-            if default is not None:
-                default = default() if callable(default) else default
-
-            if value != default:
-                continue
-
-            del set_data[path]
-            unset_data[path] = 1
+        # for path, value in list(set_data.items()):
+        #     if value or isinstance(
+        #         value, (numbers.Number, bool)
+        #     ):  # Account for 0 and True that are truthy
+        #         continue
+        #
+        #     parts = path.split(".")
+        #
+        #     if self._dynamic and len(parts) and parts[0] in self._dynamic_fields:
+        #         del set_data[path]
+        #         unset_data[path] = 1
+        #         continue
+        #
+        #     # If we've set a value that ain't the default value don't unset it.
+        #     default = None
+        #     if path in self._fields:
+        #         default = self._fields[path].default
+        #     else:  # Perform a full lookup for lists / embedded lookups
+        #         d = self
+        #         db_field_name = parts.pop()
+        #         for p in parts:
+        #             if isinstance(d, list) and p.isdigit():
+        #                 d = d[int(p)]
+        #             elif hasattr(d, "__getattribute__") and not isinstance(d, dict):
+        #                 real_path = d._reverse_db_field_map.get(p, p)
+        #                 d = getattr(d, real_path)
+        #             else:
+        #                 d = d.get(p)
+        #
+        #         if hasattr(d, "_fields"):
+        #             field_name = d._reverse_db_field_map.get(
+        #                 db_field_name, db_field_name
+        #             )
+        #             if field_name in d._fields:
+        #                 default = d._fields.get(field_name).default
+        #             else:
+        #                 default = None
+        #
+        #     if default is not None:
+        #         default = default() if callable(default) else default
+        #
+        #     if value != default:
+        #         continue
+        #
+        #     del set_data[path]
+        #     unset_data[path] = 1
         return set_data, unset_data
 
     @classmethod
