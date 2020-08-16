@@ -764,6 +764,9 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
             if fields
             else obj._changed_fields
         )
+        self._unset_fields = (
+            list(set(self._unset_fields) - set(fields)) if fields else obj._unset_fields
+        )
         self._created = False
         return self
 
@@ -783,6 +786,7 @@ class Document(BaseDocument, metaclass=TopLevelDocumentMetaclass):
         elif isinstance(value, (EmbeddedDocument, DynamicEmbeddedDocument)):
             value._instance = None
             value._changed_fields = []
+            value._unset_fields = []
         return value
 
     def to_dbref(self):

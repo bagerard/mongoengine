@@ -14,6 +14,15 @@ __all__ = (
 )
 
 
+# def __delattr__(self, *args, **kwargs):
+#     """Handle deletions of fields"""
+#     field_name = args[0]
+#     if field_name in self._fields:
+#         setattr(self, field_name, UNSET_SENTINEL)
+#     else:
+#         super().__delattr__(*args, **kwargs)
+
+
 def mark_as_changed_wrapper(parent_method):
     """Decorator that ensures _mark_as_changed method gets called."""
 
@@ -38,6 +47,18 @@ def mark_key_as_changed_wrapper(parent_method):
     return wrapper
 
 
+def mark_key_as_unset_wrapper(parent_method):
+    """Decorator that ensures _mark_as_changed method gets called with the key argument"""
+
+    def wrapper(self, key, *args, **kwargs):
+        # Can't use super() in the decorator.
+        result = parent_method(self, key, *args, **kwargs)
+        self._mark_as_unset(key)
+        return result
+
+    return wrapper
+
+
 class BaseDict(dict):
     """A special dict so we can watch any changes."""
 
@@ -53,6 +74,9 @@ class BaseDict(dict):
         self._name = name
         super().__init__(dict_items)
 
+    def _get_resolved_key(self, key=None):
+        return "{}.{}".format(self._name, key) if key else self._name
+
     def get(self, key, default=None):
         # get does not use __getitem__ by default so we must override it as well
         try:
@@ -63,15 +87,17 @@ class BaseDict(dict):
     def __getitem__(self, key):
         value = super().__getitem__(key)
 
+        resolved_key = self._get_resolved_key(key)
+
         EmbeddedDocument = _import_class("EmbeddedDocument")
         if isinstance(value, EmbeddedDocument) and value._instance is None:
             value._instance = self._instance
         elif isinstance(value, dict) and not isinstance(value, BaseDict):
-            value = BaseDict(value, None, "{}.{}".format(self._name, key))
+            value = BaseDict(value, None, resolved_key)
             super().__setitem__(key, value)
             value._instance = self._instance
         elif isinstance(value, list) and not isinstance(value, BaseList):
-            value = BaseList(value, None, "{}.{}".format(self._name, key))
+            value = BaseList(value, None, resolved_key)
             super().__setitem__(key, value)
             value._instance = self._instance
         return value
@@ -86,20 +112,23 @@ class BaseDict(dict):
         return self
 
     __setitem__ = mark_key_as_changed_wrapper(dict.__setitem__)
-    __delattr__ = mark_key_as_changed_wrapper(dict.__delattr__)
-    __delitem__ = mark_key_as_changed_wrapper(dict.__delitem__)
+    __delattr__ = mark_key_as_unset_wrapper(dict.__delattr__)
+    __delitem__ = mark_key_as_unset_wrapper(dict.__delitem__)
     pop = mark_as_changed_wrapper(dict.pop)
     clear = mark_as_changed_wrapper(dict.clear)
     update = mark_as_changed_wrapper(dict.update)
     popitem = mark_as_changed_wrapper(dict.popitem)
     setdefault = mark_as_changed_wrapper(dict.setdefault)
 
+    def _mark_as_unset(self, key):
+        resolved_key = self._get_resolved_key(key)
+        if hasattr(self._instance, "_mark_as_unset"):
+            self._instance._mark_as_unset(resolved_key)
+
     def _mark_as_changed(self, key=None):
+        resolved_key = self._get_resolved_key(key)
         if hasattr(self._instance, "_mark_as_changed"):
-            if key:
-                self._instance._mark_as_changed("{}.{}".format(self._name, key))
-            else:
-                self._instance._mark_as_changed(self._name)
+            self._instance._mark_as_changed(resolved_key)
 
 
 class BaseList(list):
@@ -117,6 +146,12 @@ class BaseList(list):
         self._name = name
         super().__init__(list_items)
 
+    def _get_resolved_key(self, key=None):
+        if key is not None:
+            return "{}.{}".format(self._name, key % len(self))
+        else:
+            return self._name
+
     def __getitem__(self, key):
         # change index to positive value because MongoDB does not support negative one
         if isinstance(key, int) and key < 0:
@@ -128,17 +163,19 @@ class BaseList(list):
             # to parent's instance. This is buggy for now but would require more work to be handled properly
             return value
 
+        resolved_key = self._get_resolved_key(key)
+
         EmbeddedDocument = _import_class("EmbeddedDocument")
         if isinstance(value, EmbeddedDocument) and value._instance is None:
             value._instance = self._instance
         elif isinstance(value, dict) and not isinstance(value, BaseDict):
             # Replace dict by BaseDict
-            value = BaseDict(value, None, "{}.{}".format(self._name, key))
+            value = BaseDict(value, None, resolved_key)
             super().__setitem__(key, value)
             value._instance = self._instance
         elif isinstance(value, list) and not isinstance(value, BaseList):
             # Replace list by BaseList
-            value = BaseList(value, None, "{}.{}".format(self._name, key))
+            value = BaseList(value, None, resolved_key)
             super().__setitem__(key, value)
             value._instance = self._instance
         return value
@@ -178,13 +215,9 @@ class BaseList(list):
     __imul__ = mark_as_changed_wrapper(list.__imul__)
 
     def _mark_as_changed(self, key=None):
+        resolved_key = self._get_resolved_key(key)
         if hasattr(self._instance, "_mark_as_changed"):
-            if key is not None:
-                self._instance._mark_as_changed(
-                    "{}.{}".format(self._name, key % len(self))
-                )
-            else:
-                self._instance._mark_as_changed(self._name)
+            self._instance._mark_as_changed(resolved_key)
 
 
 class EmbeddedDocumentList(BaseList):

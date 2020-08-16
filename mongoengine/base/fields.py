@@ -1,5 +1,4 @@
 import operator
-import warnings
 import weakref
 
 from bson import DBRef, ObjectId, SON
