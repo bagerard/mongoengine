@@ -14,15 +14,6 @@ __all__ = (
 )
 
 
-# def __delattr__(self, *args, **kwargs):
-#     """Handle deletions of fields"""
-#     field_name = args[0]
-#     if field_name in self._fields:
-#         setattr(self, field_name, UNSET_SENTINEL)
-#     else:
-#         super().__delattr__(*args, **kwargs)
-
-
 def mark_as_changed_wrapper(parent_method):
     """Decorator that ensures _mark_as_changed method gets called."""
 
@@ -48,7 +39,7 @@ def mark_key_as_changed_wrapper(parent_method):
 
 
 def mark_key_as_unset_wrapper(parent_method):
-    """Decorator that ensures _mark_as_changed method gets called with the key argument"""
+    """Decorator that ensures _mark_as_unset method gets called with the key argument"""
 
     def wrapper(self, key, *args, **kwargs):
         # Can't use super() in the decorator.

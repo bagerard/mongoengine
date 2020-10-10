@@ -165,8 +165,12 @@ class BaseDocument:
     def __setattr__(self, name, value):
         unset = value is UNSET_SENTINEL
         if unset:
-            default = self._fields[name].default
-            value = default() if callable(default) else default
+            if name in self._fields:
+                default = self._fields[name].default
+                value = default() if callable(default) else default
+            else:
+                # dynamic field
+                value = None
             self._mark_as_unset(name)
         else:
             self._unmark_as_unset(name)
@@ -644,8 +648,10 @@ class BaseDocument:
         GenericReferenceField = _import_class("GenericReferenceField")
         SortedListField = _import_class("SortedListField")
 
-        unset_fields = getattr(self, "_unset_fields", [])
-        changed_fields = getattr(self, "_changed_fields", [])
+        unset_fields = list(
+            getattr(self, "_unset_fields", [])
+        )  # cast to list to use a copy of the original
+        changed_fields = list(getattr(self, "_changed_fields", []))
 
         for field_name in self._fields_ordered:
             db_field_name = self._db_field_map.get(field_name, field_name)
@@ -653,7 +659,7 @@ class BaseDocument:
             data = self._data.get(field_name, None)
             field = self._fields.get(field_name)
 
-            if db_field_name in changed_fields or db_field_name in unset_fields:
+            if db_field_name in (changed_fields + unset_fields):
                 # Whole field already marked as changed, no need to go further
                 continue
 
@@ -682,6 +688,9 @@ class BaseDocument:
                 self._nestable_types_changed_fields(
                     changed_fields, unset_fields, key, data
                 )
+
+        # unset fields are also marked as changed by design
+        changed_fields = [f for f in changed_fields if f not in unset_fields]
         return changed_fields, unset_fields
 
     def _delta(self):
@@ -721,7 +730,9 @@ class BaseDocument:
         unset_data = {}
         if hasattr(self, "_unset_fields"):
             for path in unset_fields:
-                del set_data[path]
+                if path in set_data:
+                    del set_data[path]
+                    # raise Exception('Should not occur')
                 unset_data[path] = 1
         return set_data, unset_data
 

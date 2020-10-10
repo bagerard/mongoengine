@@ -815,13 +815,13 @@ class TestQueryset(unittest.TestCase):
         o.owner = p
         p.name = "p2"
 
-        assert o._get_changed_fields() == ["owner"]
-        assert p._get_changed_fields() == ["name"]
+        assert o._get_changed_fields() == (["owner"], [])
+        assert p._get_changed_fields() == (["name"], [])
 
         o.save()
 
-        assert o._get_changed_fields() == []
-        assert p._get_changed_fields() == ["name"]  # Fails; it's empty
+        assert o._get_changed_fields() == ([], [])
+        assert p._get_changed_fields() == (["name"], [])  # Fails; it's empty
 
         # This will do NOTHING at all, even though we changed the name
         p.save()
