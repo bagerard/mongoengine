@@ -14,6 +14,16 @@ __all__ = (
 )
 
 
+def _set_embedded_document_instance(value, instance):
+    EmbeddedDocument = _import_class("EmbeddedDocument")
+    if instance is not None and isinstance(value, EmbeddedDocument):
+        value._instance = (
+            instance
+            if isinstance(instance, weakref.ProxyTypes)
+            else weakref.proxy(instance)
+        )
+
+
 def mark_as_changed_wrapper(parent_method):
     """Decorator that ensures _mark_as_changed method gets called."""
 
@@ -63,6 +73,8 @@ class BaseDict(dict):
             self._instance = weakref.proxy(instance)
         self._name = name
         super().__init__(dict_items)
+        for value in self.values():
+            _set_embedded_document_instance(value, self._instance)
 
     def get(self, key, default=None):
         # get does not use __getitem__ by default so we must override it as well
@@ -96,13 +108,33 @@ class BaseDict(dict):
         self = state
         return self
 
-    __setitem__ = mark_key_as_changed_wrapper(dict.__setitem__)
+    def __setitem__(self, key, value):
+        if key not in self or self[key] != value:
+            self._mark_as_changed(key)
+        result = super().__setitem__(key, value)
+        _set_embedded_document_instance(value, self._instance)
+        return result
+
+    def update(self, *args, **kwargs):
+        new_values = dict(*args, **kwargs)
+        result = super().update(new_values)
+        for value in new_values.values():
+            _set_embedded_document_instance(value, self._instance)
+        self._mark_as_changed()
+        return result
+
+    def setdefault(self, key, default=None):
+        key_exists = key in self
+        result = super().setdefault(key, default)
+        if not key_exists:
+            _set_embedded_document_instance(result, self._instance)
+        self._mark_as_changed()
+        return result
+
     __delitem__ = mark_key_as_unset_wrapper(dict.__delitem__)
     pop = mark_as_changed_wrapper(dict.pop)
     clear = mark_as_changed_wrapper(dict.clear)
-    update = mark_as_changed_wrapper(dict.update)
     popitem = mark_as_changed_wrapper(dict.popitem)
-    setdefault = mark_as_changed_wrapper(dict.setdefault)
 
     def _mark_as_changed(self, key=None):
         if hasattr(self._instance, "_mark_as_changed"):
@@ -134,6 +166,8 @@ class BaseList(list):
 
         self._name = name
         super().__init__(list_items)
+        for value in self:
+            _set_embedded_document_instance(value, self._instance)
 
     def __getitem__(self, key):
         # change index to positive value because MongoDB does not support negative one
@@ -179,21 +213,51 @@ class BaseList(list):
             # In case of slice, we don't bother to identify the exact elements being updated
             # instead, we simply marks the whole list as changed
             changed_key = None
+            value = list(value)
+            values = value
+        else:
+            values = (value,)
 
         result = super().__setitem__(key, value)
+        for item in values:
+            _set_embedded_document_instance(item, self._instance)
         self._mark_as_changed(changed_key)
         return result
 
-    append = mark_as_changed_wrapper(list.append)
-    extend = mark_as_changed_wrapper(list.extend)
-    insert = mark_as_changed_wrapper(list.insert)
+    def append(self, value):
+        result = super().append(value)
+        _set_embedded_document_instance(value, self._instance)
+        self._mark_as_changed()
+        return result
+
+    def extend(self, values):
+        first_new_index = len(self)
+        result = super().extend(values)
+        for value in list.__getitem__(self, slice(first_new_index, None)):
+            _set_embedded_document_instance(value, self._instance)
+        self._mark_as_changed()
+        return result
+
+    def insert(self, index, value):
+        result = super().insert(index, value)
+        _set_embedded_document_instance(value, self._instance)
+        self._mark_as_changed()
+        return result
+
+    def __iadd__(self, values):
+        first_new_index = len(self)
+        result = super().__iadd__(values)
+        for value in list.__getitem__(self, slice(first_new_index, None)):
+            _set_embedded_document_instance(value, self._instance)
+        self._mark_as_changed()
+        return result
+
     pop = mark_as_changed_wrapper(list.pop)
     remove = mark_as_changed_wrapper(list.remove)
     reverse = mark_as_changed_wrapper(list.reverse)
     sort = mark_as_changed_wrapper(list.sort)
     clear = mark_as_changed_wrapper(list.clear)
     __delitem__ = mark_as_changed_wrapper(list.__delitem__)
-    __iadd__ = mark_as_changed_wrapper(list.__iadd__)
     __imul__ = mark_as_changed_wrapper(list.__imul__)
 
     def _mark_as_changed(self, key=None):

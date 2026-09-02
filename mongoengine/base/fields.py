@@ -1,7 +1,6 @@
 import contextlib
 import operator
 import threading
-import weakref
 
 import pymongo
 from bson import DBRef, ObjectId
@@ -11,6 +10,7 @@ from mongoengine.base.datastructures import (
     BaseDict,
     BaseList,
     EmbeddedDocumentList,
+    _set_embedded_document_instance,
 )
 from mongoengine.common import _import_class
 from mongoengine.errors import DeprecatedError, ValidationError
@@ -199,17 +199,14 @@ class BaseField:
                 # Mark the field as changed in such cases.
                 instance._mark_as_changed(self.name)
 
-        EmbeddedDocument = _import_class("EmbeddedDocument")
-        if isinstance(value, EmbeddedDocument):
-            value._instance = weakref.proxy(instance)
-        elif isinstance(value, (list, tuple)):
-            for v in value:
-                if isinstance(v, EmbeddedDocument):
-                    v._instance = weakref.proxy(instance)
+        if isinstance(value, (list, tuple)):
+            values = value
         elif isinstance(value, dict):
-            for v in value.values():
-                if isinstance(v, EmbeddedDocument):
-                    v._instance = weakref.proxy(instance)
+            values = value.values()
+        else:
+            values = (value,)
+        for item in values:
+            _set_embedded_document_instance(item, instance)
 
         instance._data[self.name] = value
 

@@ -5,6 +5,7 @@ import pytest
 from bson import ObjectId
 
 from mongoengine import (
+    DictField,
     Document,
     EmbeddedDocument,
     EmbeddedDocumentField,
@@ -92,6 +93,137 @@ class TestEmbeddedDocumentField(MongoDBTestCase):
                 assert isinstance(comment._instance, weakref.ProxyTypes)
             for comment2 in post.comments2:
                 assert isinstance(comment2._instance, weakref.ProxyTypes)
+
+    def test_dict_field_values__embedded_documents_have_instance_weakref(self):
+        class Comment(EmbeddedDocument):
+            content = StringField()
+
+        class Post(Document):
+            comments = DictField()
+
+        Post.drop_collection()
+        post = Post(comments={"first": Comment(content="Hi")})
+
+        comment = next(iter(post.comments.values()))
+        assert isinstance(comment._instance, weakref.ProxyTypes)
+        assert comment._instance == post
+
+    def test_dict_field_values__loaded_embedded_documents_have_instance_weakref(self):
+        class Comment(EmbeddedDocument):
+            content = StringField()
+
+        class Post(Document):
+            comments = DictField()
+
+        Post.drop_collection()
+        Post(comments={"first": Comment(content="Hi")}).save()
+
+        post = Post.objects.get()
+        comment = next(iter(post.comments.values()))
+        assert isinstance(comment._instance, weakref.ProxyTypes)
+        assert comment._instance == post
+
+    def test_map_field_values__loaded_embedded_documents_have_instance_weakref(self):
+        class Comment(EmbeddedDocument):
+            content = StringField()
+
+        class Post(Document):
+            comments = MapField(EmbeddedDocumentField(Comment))
+
+        Post.drop_collection()
+        Post(comments={"first": Comment(content="Hi")}).save()
+
+        post = Post.objects.get()
+        comment = next(iter(post.comments.values()))
+        assert isinstance(comment._instance, weakref.ProxyTypes)
+        assert comment._instance == post
+
+    def test_list_field_mutation__embedded_document_is_added__sets_parent_instance(
+        self,
+    ):
+        class Comment(EmbeddedDocument):
+            content = StringField()
+
+        class Post(Document):
+            comments = ListField(EmbeddedDocumentField(Comment))
+
+        mutations = (
+            ("append", lambda values, item: values.append(item)),
+            ("extend", lambda values, item: values.extend([item])),
+            ("insert", lambda values, item: values.insert(0, item)),
+            ("setitem", lambda values, item: values.__setitem__(0, item)),
+            (
+                "setitem-slice",
+                lambda values, item: values.__setitem__(slice(None), [item]),
+            ),
+            (
+                "setitem-slice-insert",
+                lambda values, item: values.__setitem__(slice(1, 1), [item]),
+            ),
+            ("iadd", lambda values, item: values.__iadd__([item])),
+        )
+
+        for name, mutate in mutations:
+            with self.subTest(name=name):
+                post = Post(comments=[Comment(content="existing")])
+                comment = Comment(content="new")
+
+                mutate(post.comments, comment)
+
+                assert isinstance(comment._instance, weakref.ProxyTypes)
+                assert comment._instance == post
+
+    def test_dict_field_mutation__embedded_document_is_added__sets_parent_instance(
+        self,
+    ):
+        class Comment(EmbeddedDocument):
+            content = StringField()
+
+        class Post(Document):
+            comments = DictField()
+
+        mutations = (
+            ("setitem", lambda values, item: values.__setitem__("new", item)),
+            ("update", lambda values, item: values.update({"new": item})),
+            ("setdefault", lambda values, item: values.setdefault("new", item)),
+        )
+
+        for name, mutate in mutations:
+            with self.subTest(name=name):
+                post = Post()
+                comment = Comment(content="new")
+
+                mutate(post.comments, comment)
+
+                assert isinstance(comment._instance, weakref.ProxyTypes)
+                assert comment._instance == post
+
+    def test_container_field_mutation__embedded_document_is_reattached__uses_last_parent(
+        self,
+    ):
+        class Comment(EmbeddedDocument):
+            content = StringField()
+
+        class Post(Document):
+            comments_by_index = ListField(EmbeddedDocumentField(Comment))
+            comments_by_name = DictField()
+
+        list_comment = Comment(content="list")
+        dict_comment = Comment(content="dict")
+        first = Post(
+            comments_by_index=[list_comment],
+            comments_by_name={"first": dict_comment},
+        )
+        second = Post()
+
+        assert list_comment._instance == first
+        assert dict_comment._instance == first
+
+        second.comments_by_index.append(list_comment)
+        second.comments_by_name["second"] = dict_comment
+
+        assert list_comment._instance == second
+        assert dict_comment._instance == second
 
     def test_embedded_document_field_validate_subclass(self):
         class BaseItem(EmbeddedDocument):
